@@ -1,0 +1,7 @@
+onnxruntime/
+eigen-3.3.9/
+.vscode/
+dataset/
+inference/pretrained_models/build/
+inference/pynote/build/
+inference/pynote/libtorch/
