@@ -235,54 +235,54 @@ void inference_folder(const std::string& input_folder,Ort::Session& model,const 
     std::cout<<"\rCompleted"<<std::endl<<"Total audio time: "<<total_audio_time<<std::endl;
 
 }
-#include "../models/PyanNet.cpp"
-int main(){
-    PyanNet model;
-    torch::load(model,"/home/rohan/VAD/inference/pretrained_models/models/best_ckpt_dh");
-    return 0;
-}
-// int main(int argc, char* argv[]) {
-//     if (argc < 2) {
-//         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
-//         return 1;
-//     }
-//     std::string command = argv[1];
-//     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
-
-//     // Path to your ONNX model file
-//     const char* model_path = "/home/rohan/VAD/inference/pretrained_models/models/best_dh.onnx";
-
-//     Ort::SessionOptions session_options;
-//     Ort::Session model(env, model_path, session_options); // Load the ONNX model
-//     auto start=std::chrono::high_resolution_clock::now();
-//     if(command=="single"){
-//         inference_single(argv[2],model,argv[4]);
-//     }
-//     else if(command=="folder"){
-//         inference_folder(argv[2],model,argv[4]);
-//     }
-//     else if(command=="eval"){
-//         evaluation_single_file(argv[2],argv[3]);
-//     }
-//     else{
-//         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
-//         return 1;
-//     }
-//     auto stop = std::chrono::high_resolution_clock::now();
-//     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-
-//     auto hours = duration.count() / 3600000;
-//     duration -= std::chrono::milliseconds(hours * 3600000);
-
-//     auto minutes = duration.count() / 60000;
-//     duration -= std::chrono::milliseconds(minutes * 60000);
-
-//     auto seconds = duration.count() / 1000;
-//     duration -= std::chrono::milliseconds(seconds * 1000);
-
-//     auto milliseconds = duration.count();
-
-//     std::cout << "Total time taken: " << hours << " hr " << minutes << " min " << seconds << " sec " << milliseconds << " msec" << std::endl;
-    
+// #include "../models/PyanNet.cpp"
+// int main(){
+//     PyanNet model;
+//     torch::load(model,"/home/rohan/VAD/inference/pretrained_models/models/best_ckpt_dh");
 //     return 0;
 // }
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
+        return 1;
+    }
+    std::string command = argv[1];
+    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
+
+    // Path to your ONNX model file
+    const char* model_path = "/home/rohan/VAD/inference/pretrained_models/models/best_dh.onnx";
+
+    Ort::SessionOptions session_options;
+    Ort::Session model(env, model_path, session_options); // Load the ONNX model
+    auto start=std::chrono::high_resolution_clock::now();
+    if(command=="single"){
+        inference_single(argv[2],model,argv[4]);
+    }
+    else if(command=="folder"){
+        inference_folder(argv[2],model,argv[4]);
+    }
+    else if(command=="eval"){
+        evaluation_single_file(argv[2],argv[3]);
+    }
+    else{
+        std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
+        return 1;
+    }
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+    auto hours = duration.count() / 3600000;
+    duration -= std::chrono::milliseconds(hours * 3600000);
+
+    auto minutes = duration.count() / 60000;
+    duration -= std::chrono::milliseconds(minutes * 60000);
+
+    auto seconds = duration.count() / 1000;
+    duration -= std::chrono::milliseconds(seconds * 1000);
+
+    auto milliseconds = duration.count();
+
+    std::cout << "Total time taken: " << hours << " hr " << minutes << " min " << seconds << " sec " << milliseconds << " msec" << std::endl;
+    
+    return 0;
+}
