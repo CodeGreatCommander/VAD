@@ -175,7 +175,7 @@ std::vector<std::pair<float,float>> inference(std::vector<float>& audio_data,Ort
 
 void inference_single(const std::string& input_file,Ort::Session& model,const std::string& output_file){
     //Initailization
-    float stride_ms=80,chunk_ms=100,sampling_rate=16000,threshold=0.7,min_speech_sec=0.5;
+    float stride_ms=800,chunk_ms=1000,sampling_rate=16000,threshold=0.7,min_speech_sec=0.5;
     int chunk_sample = int(chunk_ms * sampling_rate / 1000),stride_sample = int(stride_ms * sampling_rate / 1000);
     
     //wav loading
@@ -185,7 +185,7 @@ void inference_single(const std::string& input_file,Ort::Session& model,const st
     std::vector<float> audio_data=wav.first[0];
     audio_data.insert(audio_data.end(),len_pad,0);
     if(wav.second!=sampling_rate){
-        throw std::runtime_error("Sampling rate of wav file is not equal to "+std::to_string(sampling_rate));
+        throw std::runtime_error("Sampling rate of wav file is not equal to "+std::to_string(sampling_rate)+" and found to be "+std::to_string(wav.second));
     }
 
     //time loading
@@ -223,49 +223,66 @@ void inference_folder(const std::string& input_folder,Ort::Session& model,const 
     std::sort(files.begin(),files.end());
     int i=0,tot=files.size();
     double total_audio_time=0;
-    auto start=std::chrono::high_resolution_clock::now();
-    size_t m=0;
     for(const auto& file:files){
         // if(i<9){i++;continue;}
         total_audio_time+=getDuration(file);
         std::cout << "\rProcessing file number: "<<++i<<" / "<<tot<< std::flush;
         auto x=kaldi_data::loadWav(file);
-        m=std::max(m,x.first[0].size());
         std::string output_file=output_folder+"/"+file.substr(file.find_last_of("/")+1,file.find_last_of(".")-file.find_last_of("/")-1)+".txt";
         inference_single(file,model,output_file);
     }
     auto stop=std::chrono::high_resolution_clock::now();
     std::cout<<"\rCompleted"<<std::endl<<"Total audio time: "<<total_audio_time<<std::endl;
-    std::cout<<"Total time taken: "<<std::chrono::duration_cast<std::chrono::seconds>(stop-start).count()<<std::endl;
-    std::cout<<"Max length: "<<m<<std::endl;
 
 }
-
-int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
-        return 1;
-    }
-    std::string command = argv[1];
-    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
-
-    // Path to your ONNX model file
-    const char* model_path = "/home/rohan/VAD/inference/pretrained_models/models/best_dh.onnx";
-
-    Ort::SessionOptions session_options;
-    Ort::Session model(env, model_path, session_options); // Load the ONNX model
-    if(command=="single"){
-        inference_single(argv[2],model,argv[4]);
-    }
-    else if(command=="folder"){
-        inference_folder(argv[2],model,argv[4]);
-    }
-    else if(command=="eval"){
-        evaluation_single_file(argv[2],argv[3]);
-    }
-    else{
-        std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
-        return 1;
-    }
+#include "../models/PyanNet.cpp"
+int main(){
+    PyanNet model;
+    torch::load(model,"/home/rohan/VAD/inference/pretrained_models/models/best_ckpt_dh");
     return 0;
 }
+// int main(int argc, char* argv[]) {
+//     if (argc < 2) {
+//         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
+//         return 1;
+//     }
+//     std::string command = argv[1];
+//     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
+
+//     // Path to your ONNX model file
+//     const char* model_path = "/home/rohan/VAD/inference/pretrained_models/models/best_dh.onnx";
+
+//     Ort::SessionOptions session_options;
+//     Ort::Session model(env, model_path, session_options); // Load the ONNX model
+//     auto start=std::chrono::high_resolution_clock::now();
+//     if(command=="single"){
+//         inference_single(argv[2],model,argv[4]);
+//     }
+//     else if(command=="folder"){
+//         inference_folder(argv[2],model,argv[4]);
+//     }
+//     else if(command=="eval"){
+//         evaluation_single_file(argv[2],argv[3]);
+//     }
+//     else{
+//         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
+//         return 1;
+//     }
+//     auto stop = std::chrono::high_resolution_clock::now();
+//     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+//     auto hours = duration.count() / 3600000;
+//     duration -= std::chrono::milliseconds(hours * 3600000);
+
+//     auto minutes = duration.count() / 60000;
+//     duration -= std::chrono::milliseconds(minutes * 60000);
+
+//     auto seconds = duration.count() / 1000;
+//     duration -= std::chrono::milliseconds(seconds * 1000);
+
+//     auto milliseconds = duration.count();
+
+//     std::cout << "Total time taken: " << hours << " hr " << minutes << " min " << seconds << " sec " << milliseconds << " msec" << std::endl;
+    
+//     return 0;
+// }

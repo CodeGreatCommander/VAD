@@ -92,7 +92,7 @@ namespace kaldi_data{
 }
 // #include <iostream>
 // int main(){
-//     auto x=kaldi_data::loadWav("/home/rohan/VAD/dataset/data_tesing/an4_diarize_test.wav");
+//     auto x=kaldi_data::loadWav("/home/rohan/VAD/dataset/record_trial.flac");
 //     std::cout<<x.second<<std::endl;
 //     return 0;
 // }
