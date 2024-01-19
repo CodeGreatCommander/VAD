@@ -247,18 +247,25 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     std::string command = argv[1];
-    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
-
-    // Path to your ONNX model file
-    const char* model_path = "/home/rohan/VAD/inference/pretrained_models/models/best_dh.onnx";
-
-    Ort::SessionOptions session_options;
-    Ort::Session model(env, model_path, session_options); // Load the ONNX model
     auto start=std::chrono::high_resolution_clock::now();
     if(command=="single"){
+        Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
+        // Path to your ONNX model file
+        const char* model_path =argv[3];
+
+        Ort::SessionOptions session_options;
+        Ort::Session model(env, model_path, session_options); // Load the ONNX model
+    
         inference_single(argv[2],model,argv[4]);
     }
     else if(command=="folder"){
+        Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
+        // Path to your ONNX model file
+        const char* model_path = argv[3];
+
+        Ort::SessionOptions session_options;
+        Ort::Session model(env, model_path, session_options); // Load the ONNX model
+    
         inference_folder(argv[2],model,argv[4]);
     }
     else if(command=="eval"){

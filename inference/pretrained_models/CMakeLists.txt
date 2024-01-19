@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 project(inference)
 
-set(ONNXRUNTIME_INCLUDE_DIR /home/rohan/VAD/onnxruntime/include)
-set(ONNXRUNTIME_LIBRARY_DIR /home/rohan/VAD/onnxruntime/build/Linux/Release)
-set(SNDFILE_INCLUDE_DIR /usr/local/include)
-set(CMAKE_PREFIX_PATH /home/rohan/VAD/inference/pynote/libtorch ${CMAKE_PREFIX_PATH})
+set(ONNXRUNTIME_INCLUDE_DIR ../..'/dependencies/onnxruntime/include)
+set(ONNXRUNTIME_LIBRARY_DIR ../../dependencies/onnxruntime/build/Linux/Release)
+# set(SNDFILE_INCLUDE_DIR /usr/local/include)
+set(SNDFILE_INCLUDE_DIR ../../dependencies/libsndfile/include)
+set(CMAKE_PREFIX_PATH ../../dependencies/libtorch ${CMAKE_PREFIX_PATH})
 
 find_package(Torch REQUIRED)
 
