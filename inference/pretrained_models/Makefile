@@ -1,8 +1,10 @@
+initialize:all_dependencies compile
+
 #----------------------------------------compilation and build----------------------------------------
 compile: build libtorch onnxruntime libsndfile
 	make -C ./build
 
-build:clear_build
+build:
 	mkdir -p ./build
 	cd ./build && cmake ..  && cd ..
 
@@ -52,7 +54,7 @@ EXEC = inference
 
 infer:
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
-	./build/$(EXEC) single "/home/rohan/VAD/dataset/third_dihard_challenge_eval/data/flac/DH_EVAL_0004.flac" "/home/rohan/VAD/inference/pretrained_models/models/best_dh.onnx" "/home/rohan/VAD/inference/pretrained_models/output/output.txt"
+	./build/$(EXEC) single 
 
 inferfolder:
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi

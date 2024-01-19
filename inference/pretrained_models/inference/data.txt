@@ -1,0 +1,3 @@
+../../dataset/third_dihard_challenge_eval/data/flac/DH_EVAL_0004.flac
+./models/best_dh.onnx
+./output/output.txt

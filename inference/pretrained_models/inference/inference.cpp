@@ -235,12 +235,6 @@ void inference_folder(const std::string& input_folder,Ort::Session& model,const 
     std::cout<<"\rCompleted"<<std::endl<<"Total audio time: "<<total_audio_time<<std::endl;
 
 }
-// #include "../models/PyanNet.cpp"
-// int main(){
-//     PyanNet model;
-//     torch::load(model,"/home/rohan/VAD/inference/pretrained_models/models/best_ckpt_dh");
-//     return 0;
-// }
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
@@ -249,27 +243,59 @@ int main(int argc, char* argv[]) {
     std::string command = argv[1];
     auto start=std::chrono::high_resolution_clock::now();
     if(command=="single"){
+        std::string arg3, arg2, arg4;
+        std::ifstream file("./inference/data.txt");
+        if (file.is_open()) {
+            std::getline(file, arg2);
+            std::getline(file, arg3);
+            std::getline(file, arg4);
+            file.close();
+        } else {
+            std::cerr << "Unable to open file data.txt";
+            return 1;
+        }
         Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
         // Path to your ONNX model file
-        const char* model_path =argv[3];
+        const std::string model_path =arg3;
 
         Ort::SessionOptions session_options;
-        Ort::Session model(env, model_path, session_options); // Load the ONNX model
+        Ort::Session model(env, model_path.c_str(), session_options); // Load the ONNX model
     
-        inference_single(argv[2],model,argv[4]);
+        inference_single(arg2,model,arg4);
     }
     else if(command=="folder"){
+        std::string arg3, arg2, arg4;
+        std::ifstream file("data.txt");
+        if (file.is_open()) {
+            std::getline(file, arg2);
+            std::getline(file, arg3);
+            std::getline(file, arg4);
+            file.close();
+        } else {
+            std::cerr << "Unable to open file data.txt";
+            return 1;
+        }
         Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
         // Path to your ONNX model file
-        const char* model_path = argv[3];
+        const char* model_path = arg3.c_str();
 
         Ort::SessionOptions session_options;
         Ort::Session model(env, model_path, session_options); // Load the ONNX model
     
-        inference_folder(argv[2],model,argv[4]);
+        inference_folder(arg2,model,arg4);
     }
     else if(command=="eval"){
-        evaluation_single_file(argv[2],argv[3]);
+        std::string arg3, arg2;
+        std::ifstream file("data.txt");
+        if (file.is_open()) {
+            std::getline(file, arg2);
+            std::getline(file, arg3);
+            file.close();
+        } else {
+            std::cerr << "Unable to open file data.txt";
+            return 1;
+        }
+        evaluation_single_file(arg2,arg3);
     }
     else{
         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
