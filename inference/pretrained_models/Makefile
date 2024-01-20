@@ -53,6 +53,7 @@ all_dependencies: libtorch onnxruntime libsndfile
 EXEC = inference
 
 infer:
+	mkdir -p ./output
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
 	./build/$(EXEC) single 
 
