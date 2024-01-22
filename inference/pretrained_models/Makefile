@@ -59,12 +59,13 @@ infer:
 
 inferfolder:
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
-	./build/$(EXEC) folder "/home/rohan/VAD/dataset/third_dihard_challenge_eval/data/flac/" "/home/rohan/VAD/inference/pretrained_models/models/best_dh.onnx" "/home/rohan/VAD/inference/pretrained_models/output"
-
+	./build/$(EXEC) folder 
 evaluate:
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
-	./build/$(EXEC) eval "/home/rohan/VAD/inference/pretrained_models/output/output.txt" "/home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0004.rttm"
-
+	./build/$(EXEC) eval 
+test:
+	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
+	./build/$(EXEC) test 
 
 
 #---------------------------------------------clean--------------------------------------------------

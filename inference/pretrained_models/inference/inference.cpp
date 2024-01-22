@@ -10,83 +10,6 @@
 #include <chrono>
 #include <set>
 
-int inference_length=13001600;
-
-double evaluation_single_file(const std::string& output_file,const std::string& rttm_file){
-    std::ifstream output(output_file);
-    std::ifstream rttm(rttm_file);
-    std::string line;
-    std::vector<std::pair<double,double>> output_set;
-    std::vector<std::pair<double,double>> rttm_set;
-    while(std::getline(output,line)){
-        double start,end;
-        sscanf(line.c_str(),"Start: %lf End: %lf",&start,&end);
-        output_set.push_back({start,end});
-    }
-    while(std::getline(rttm,line)){
-        double start,end;
-        sscanf(line.c_str(),"SPEAKER 1 1 %lf %lf",&start,&end);
-        rttm_set.push_back({start,end});
-    }
-    double tper = 0;
-    double last_end = 0;
-    for(int i = 0, j = 0; i < rttm_set.size() && j < output_set.size();) {
-        if(output_set[j].first >= rttm_set[i].first && output_set[j].second <= rttm_set[i].second) {
-            tper += output_set[j].second - output_set[j].first;
-            last_end = output_set[j].second;
-            j++;
-        } else if(output_set[j].first < rttm_set[i].first) {
-            if(output_set[j].second > rttm_set[i].first) {
-                tper += rttm_set[i].second - rttm_set[i].first;
-                last_end = rttm_set[i].second;
-                i++;
-            } else {
-                tper += output_set[j].first - last_end;
-                last_end = output_set[j].second;
-                j++;
-            }
-        } else {
-            tper += rttm_set[i].first - last_end;
-            last_end = rttm_set[i].second;
-            i++;
-        }
-    }
-    std::cout<<"Percentage of time of correct detection:"<<100*tper/rttm_set.back().second<<std::endl;
-    double tp=0,fp=0,fn=0;
-    for(const auto& x:output_set){
-        bool flag=false;
-        for(const auto& y:rttm_set){
-            if(x.first>=y.first&&x.second<=y.second){
-                tp++;
-                flag=true;
-                break;
-            }
-        }
-        if(!flag){
-            fp++;
-        }
-    }
-    for(const auto& x:rttm_set){
-        bool flag=false;
-        for(const auto& y:output_set){
-            if(x.first>=y.first&&x.second<=y.second){
-                flag=true;
-                break;
-            }
-        }
-        if(!flag){
-            fn++;
-        }
-    }
-    double precision=tp/(tp+fp);
-    double recall=tp/(tp+fn);
-    double f1=2*precision*recall/(precision+recall);
-    std::cout<<"Precision: "<<precision<<std::endl;
-    std::cout<<"Recall: "<<recall<<std::endl;
-    std::cout<<"F1: "<<f1<<std::endl;
-    return f1;
-}
-
 double getDuration(const std::string& filename) {
     SF_INFO sndInfo;
     SNDFILE *sndFile = sf_open(filename.c_str(), SFM_READ, &sndInfo);
@@ -99,6 +22,47 @@ double getDuration(const std::string& filename) {
     sf_close(sndFile);
     return duration;
 }
+
+void evaluation_single_file(const std::string& output,const std::string& file,const std::string& audio){
+    int samplerate=16000;
+    int len_audio=getDuration(audio)*samplerate+2;
+    std::vector<bool> rttm(len_audio,false),output_vec(len_audio,false);
+    std::ifstream rttm_file(file);
+    std::string line;
+    while(std::getline(rttm_file,line)){
+        double start,duration;
+        char speaker[50]; // Adjust size as needed
+        sscanf(line.c_str(),"SPEAKER %s 1 %lf %lf", speaker, &start, &duration);
+        for(int i=(int)(start*samplerate);i<=(int)((start+duration)*samplerate);i++){
+            rttm[i]=true;
+        }
+    }
+    std::ifstream output_file(output);
+    while(std::getline(output_file,line)){
+        double start,end;
+        sscanf(line.c_str(),"Start: %lf End: %lf",&start,&end);
+        for(int i=(int)(start*samplerate);i<=(int)(end*samplerate);i++){
+            output_vec[i]=true;
+        }
+    }
+    double acc,fa,miss;acc=fa=miss=0;
+    for(int i=0;i<len_audio;i++){
+        if((rttm[i]&&output_vec[i])||(!rttm[i]&&!output_vec[i])){
+            acc++;
+        }
+        else if(rttm[i]&&!output_vec[i]){
+            miss++;
+        }
+        else if(!rttm[i]&&output_vec[i]){
+            fa++;
+        }
+    }
+    std::cout<<"Accuracy: "<<acc/len_audio<<std::endl;
+    std::cout<<"Miss: "<<miss/len_audio<<std::endl;
+    std::cout<<"False Alarm: "<<fa/len_audio<<std::endl;
+}
+
+
 torch::Tensor convertVecVecToTensor(std::vector<std::vector<float>>& vec,bool freeMemory=false) {
     // Flatten the 2D vector into a 1D vector
     std::vector<float> flatVec;
@@ -175,7 +139,7 @@ std::vector<std::pair<float,float>> inference(std::vector<float>& audio_data,Ort
 
 void inference_single(const std::string& input_file,Ort::Session& model,const std::string& output_file){
     //Initailization
-    float stride_ms=800,chunk_ms=1000,sampling_rate=16000,threshold=0.7,min_speech_sec=0.5;
+    float stride_ms=5000,chunk_ms=5000,sampling_rate=16000,threshold=0.5,min_speech_sec=0;
     int chunk_sample = int(chunk_ms * sampling_rate / 1000),stride_sample = int(stride_ms * sampling_rate / 1000);
     
     //wav loading
@@ -235,6 +199,11 @@ void inference_folder(const std::string& input_folder,Ort::Session& model,const 
     std::cout<<"\rCompleted"<<std::endl<<"Total audio time: "<<total_audio_time<<std::endl;
 
 }
+
+void test(){
+
+}
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
@@ -265,7 +234,7 @@ int main(int argc, char* argv[]) {
     }
     else if(command=="folder"){
         std::string arg3, arg2, arg4;
-        std::ifstream file("data.txt");
+        std::ifstream file("./inference/data.txt");
         if (file.is_open()) {
             std::getline(file, arg2);
             std::getline(file, arg3);
@@ -285,21 +254,21 @@ int main(int argc, char* argv[]) {
         inference_folder(arg2,model,arg4);
     }
     else if(command=="eval"){
-        std::string arg3, arg2;
-        std::ifstream file("data.txt");
+        std::string arg3, arg2,arg4;
+        std::ifstream file("./inference/data.txt");
         if (file.is_open()) {
             std::getline(file, arg2);
             std::getline(file, arg3);
+            std::getline(file, arg4);
             file.close();
         } else {
             std::cerr << "Unable to open file data.txt";
             return 1;
         }
-        evaluation_single_file(arg2,arg3);
+        evaluation_single_file(arg2,arg3,arg4);//arg2: output file, arg3: rttm file, arg4: audio file
     }
     else{
-        std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
-        return 1;
+        test();
     }
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
