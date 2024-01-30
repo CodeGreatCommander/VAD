@@ -14,7 +14,7 @@ double getDuration(const std::string& filename) {
     SF_INFO sndInfo;
     SNDFILE *sndFile = sf_open(filename.c_str(), SFM_READ, &sndInfo);
     if (sndFile == NULL) {
-        std::cerr << "Error reading source file" << std::endl;
+        std::cerr << "Error reading source file " <<filename<< std::endl;
         return -1;
     }
 
@@ -23,8 +23,8 @@ double getDuration(const std::string& filename) {
     return duration;
 }
 
-void evaluation_single_file(const std::string& output,const std::string& file,const std::string& audio){
-    int samplerate=16000;
+void evaluation_single_file(const std::string output,const std::string file,const std::string audio){
+    int samplerate=59;
     int len_audio=getDuration(audio)*samplerate+2;
     std::vector<bool> rttm(len_audio,false),output_vec(len_audio,false);
     std::ifstream rttm_file(file);
@@ -37,6 +37,7 @@ void evaluation_single_file(const std::string& output,const std::string& file,co
             rttm[i]=true;
         }
     }
+    rttm_file.close();
     std::ifstream output_file(output);
     while(std::getline(output_file,line)){
         double start,end;
@@ -45,6 +46,7 @@ void evaluation_single_file(const std::string& output,const std::string& file,co
             output_vec[i]=true;
         }
     }
+    output_file.close();
     double acc,fa,miss;acc=fa=miss=0;
     for(int i=0;i<len_audio;i++){
         if((rttm[i]&&output_vec[i])||(!rttm[i]&&!output_vec[i])){
@@ -63,25 +65,38 @@ void evaluation_single_file(const std::string& output,const std::string& file,co
 }
 
 
-torch::Tensor convertVecVecToTensor(std::vector<std::vector<float>>& vec,bool freeMemory=false) {
-    // Flatten the 2D vector into a 1D vector
-    std::vector<float> flatVec;
-    for (const auto& subVec : vec) {
-        for(const auto& val : subVec) {
-            flatVec.push_back(val);
+void evaluate_folder(const std::string& output_folder,const std::string& rttm_folder,const std::string& audio_folder){
+    std::vector<std::string> files;
+    for (const auto & entry : std::filesystem::directory_iterator(output_folder)) {
+        if(entry.path().extension()==".txt"){
+            files.push_back(entry.path().string());
         }
     }
-
-    // Create a 1D tensor from the 1D vector
-    torch::Tensor tensor = torch::tensor(flatVec);
-
-    // Reshape the 1D tensor into a 2D tensor
-    tensor = tensor.view({static_cast<int64_t>(vec.size()), static_cast<int64_t>(vec[0].size())});
-    if(freeMemory){
-        vec.clear();
+    std::sort(files.begin(),files.end());
+    for(int i=0;i<10;i++){
+        std::cout<<files[i]<<std::endl;
     }
-    return tensor;
+    int i=0,tot=files.size();
+    double total_audio_time=0;
+    int c=0;
+    for(const auto& file:files){
+        c++;
+        if(c==3)continue;
+        std::cout<<"Started"<<std::endl;
+        std::cout << "Processing file number: "<<++i<<" / "<<tot<<" "<<file<<std::endl;
+        std::string rttm_file=rttm_folder+"/"+file.substr(file.find_last_of("/")+1,file.find_last_of(".")-file.find_last_of("/")-1)+".rttm";
+        std::string audio_file=audio_folder+"/"+file.substr(file.find_last_of("/")+1,file.find_last_of(".")-file.find_last_of("/")-1)+".flac";
+        total_audio_time+=getDuration(audio_file);
+        evaluation_single_file(file,rttm_file,audio_file);
+        std::cout<<"ended"<<std::endl;
+    }
+    auto stop=std::chrono::high_resolution_clock::now();
+    std::cout<<"\rCompleted"<<std::endl<<"Total audio time: "<<total_audio_time<<std::endl;
+
 }
+
+
+
 std::vector<std::pair<float,float>> inference(std::vector<float>& audio_data,Ort::Session& model,const int chunk_size,const int sampling_rate,const float threshold,const double duration_seconds,const double initial_duration_seconds=0){
     std::vector<int64_t> input_tensor_shape = {1,1, static_cast<int64_t>(audio_data.size())/*chunk_sample*/}; // shape for 1D tensor
     auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
@@ -107,7 +122,10 @@ std::vector<std::pair<float,float>> inference(std::vector<float>& audio_data,Ort
     std::vector<std::pair<float,float>>output_pairs;
     bool flag=false;
     double out=0;
+    std::ofstream file("values.txt",std::ios::app);
+    file<<initial_duration_seconds<<" "<<initial_duration_seconds+duration_seconds<<std::endl;
     for (int64_t i = 0; i < output_size; i++) {
+        file<<floatarr[i]<<" ";
         if(floatarr[i]>threshold){
             floatarr[i]=1;
         }
@@ -127,19 +145,21 @@ std::vector<std::pair<float,float>> inference(std::vector<float>& audio_data,Ort
         else{
             if(flag){
                 flag=false;
-                output_pairs.push_back({ initial_duration_seconds+out,initial_duration_seconds+std::min(pres_time+time_per_frame,duration_seconds)});
+                output_pairs.push_back({ initial_duration_seconds+out,initial_duration_seconds+std::min(pres_time/*+time_per_frame*/,duration_seconds)});
             }
         }
     }
     if(flag){
         output_pairs.push_back({initial_duration_seconds+out,initial_duration_seconds+duration_seconds});
     }
+    file<<std::endl;
+    file.close();
     return output_pairs;
 }
 
 void inference_single(const std::string& input_file,Ort::Session& model,const std::string& output_file){
     //Initailization
-    float stride_ms=5000,chunk_ms=5000,sampling_rate=16000,threshold=0.5,min_speech_sec=0;
+    float stride_ms=50,chunk_ms=500,sampling_rate=16000,threshold=0.5,min_speech_sec=0.0;
     int chunk_sample = int(chunk_ms * sampling_rate / 1000),stride_sample = int(stride_ms * sampling_rate / 1000);
     
     //wav loading
@@ -151,7 +171,15 @@ void inference_single(const std::string& input_file,Ort::Session& model,const st
     if(wav.second!=sampling_rate){
         throw std::runtime_error("Sampling rate of wav file is not equal to "+std::to_string(sampling_rate)+" and found to be "+std::to_string(wav.second));
     }
-
+    // std::ofstream view_file("view.txt", std::ios::app);
+    // if (!view_file.is_open()) {
+    //     std::cerr << "Unable to open file view.txt";
+    // }
+    // for (float sample : audio_data) {
+    //     view_file << sample << " ";
+    // }
+    // view_file << std::endl;
+    // view_file.close();
     //time loading
     double duration_seconds=getDuration(input_file);
 
@@ -215,14 +243,20 @@ int main(int argc, char* argv[]) {
         std::string arg3, arg2, arg4;
         std::ifstream file("./inference/data.txt");
         if (file.is_open()) {
-            std::getline(file, arg2);
-            std::getline(file, arg3);
-            std::getline(file, arg4);
+            std::getline(file, arg2);//input
+            std::getline(file, arg3);//model
+            std::getline(file, arg4);//output
             file.close();
         } else {
             std::cerr << "Unable to open file data.txt";
             return 1;
         }
+        // std::ofstream view_file("view.txt", std::ios::trunc);
+        // if (!view_file.is_open()) {
+        //     std::cerr << "Unable to open file view.txt";
+        //     return 1;
+        // }
+        // view_file.close();
         Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
         // Path to your ONNX model file
         const std::string model_path =arg3;
