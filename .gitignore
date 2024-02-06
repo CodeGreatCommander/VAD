@@ -1,0 +1,9 @@
+onnxruntime/
+eigen-3.3.9/
+.vscode/
+dataset/
+inference/pretrained_models/build/
+dependencies/
+inference/pretrained_models/output/
+inference/pynote/build/
+inference/pretrained_models/values.txt
