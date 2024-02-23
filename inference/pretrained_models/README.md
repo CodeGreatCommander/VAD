@@ -37,6 +37,14 @@ For folder-based inference,execute:
 ```bash
 make batch DIR=/home/rohan/VAD/dataset/third_dihard_challenge_eval/data/flac/ MODEL=pyannote
 ```
+```bash
+make evaluate FILE=/home/rohan/VAD/inference/pretrained_models/output/output.txt RTTM=/home/rohan/VAD/dataset/data_tesing/an4_diarize_test.rttm AUDIO=/home/rohan/VAD/dataset/data_tesing/an4_diarize_test.wav
+```
+
+```bash
+make evaluate_batch DIR=/home/rohan/VAD/inference/pretrained_models/output RTTM_DIR=/home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm AUDIO_DIR=/home/rohan/VAD/dataset/third_dihard_challenge_eval/data/flac
+```
+
 Ensure to substitute the placeholders with project-specific information.
 
 ## Understanding ONNX

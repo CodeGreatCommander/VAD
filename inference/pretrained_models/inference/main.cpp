@@ -35,7 +35,15 @@ int main(int argc,char *argv[]){
             std::cerr << "Usage: " << argv[0] << " evaluate <path to file> <path to ground truth> <path to audio>" << std::endl;
             return 1;
         }
-        eval(argv[2],argv[3],argv[4]);
+        eval(argv[2],argv[3],argv[4],false);
+    }
+    else if(command=="evaluate_batch"){
+        //Arguments <path to file> <path to ground truth> <path to audio>
+        if(argc<5){
+            std::cerr << "Usage: " << argv[0] << " evaluate <path to file> <path to ground truth> <path to audio>" << std::endl;
+            return 1;
+        }
+        eval(argv[2],argv[3],argv[4],true);
     }
     else{
         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;

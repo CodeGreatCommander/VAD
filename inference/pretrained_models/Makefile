@@ -66,8 +66,13 @@ batch:
 	@./build/$(EXEC) batch $(DIR) $(MODEL)
 	@echo "Batch inference completed successfully!"
 evaluate:
+	@mkdir -p ./analysis
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
-	./build/$(EXEC) eval 
+	@./build/$(EXEC) evaluate $(FILE) $(RTTM) $(AUDIO) 
+evaluate_batch:
+	@mkdir -p ./analysis
+	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
+	@./build/$(EXEC) evaluate_batch $(DIR) $(RTTM_DIR) $(AUDIO_DIR)
 test:
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
 	./build/$(EXEC) test 

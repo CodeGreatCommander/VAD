@@ -28,13 +28,6 @@ std::pair<double,std::vector<float>> inference(std::vector<float>& audio_data,Or
     // std::vector<std::pair<float,float>>output_pairs;
     // bool flag=false;
     // double out=0;
-    std::ofstream file("values.txt",std::ios::app);
-    file<<initial_duration_seconds<<" "<<initial_duration_seconds+duration_seconds<<std::endl;
-    for(int i=0;i<output.size();i++){
-        file<<output[i]<<" ";
-    }
-    file<<std::endl;
-    file.close();
     // for (int64_t i = 0; i < output_size; i++) {
     //     file<<floatarr[i]<<" ";
     //     if(floatarr[i]>threshold){
