@@ -211,7 +211,7 @@ void inference_single(const std::string& input_file,Ort::Session& model,const st
             if(index>=len_output){
                 throw std::runtime_error("Index out of bound");
             }
-            double weight=uniform(j,output_chunks[i].size()-j);
+            double weight=normal(j,output_chunks[i].size()-j);
             output[index]+=weight*output_chunks[i][j];
             count[index]+=weight;
         }
