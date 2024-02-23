@@ -31,11 +31,11 @@ make initialize
 ```
 For single-file inference, execute:
 ```bash
-make infer
+make infer FILE=/home/rohan/VAD/dataset/third_dihard_challenge_eval/data/flac/DH_EVAL_0001.flac MODEL=pyannote
 ```
 For folder-based inference,execute:
 ```bash
-make inferfolder
+make batch DIR=/home/rohan/VAD/dataset/third_dihard_challenge_eval/data/flac/ MODEL=pyannote
 ```
 Ensure to substitute the placeholders with project-specific information.
 

@@ -10,8 +10,8 @@ set(CMAKE_PREFIX_PATH ../../dependencies/libtorch ${CMAKE_PREFIX_PATH})
 find_package(Torch REQUIRED)
 
 # Add the executable
-add_executable(inference ../utils/kaldi_data.cpp inference/proximityFunction.cpp inference/inference.cpp)
-
+# add_executable(inference ../utils/kaldi_data.cpp inference/proximityFunction.cpp inference/inference.cpp)
+add_executable(inference ../utils/kaldi_data.cpp inference/utils.cpp inference/proximityFunction.cpp inference/evaluation.cpp inference/inference.cpp inference/main.cpp)
 # Include the headers
 target_include_directories(inference PRIVATE ${ONNXRUNTIME_INCLUDE_DIR} ${SNDFILE_INCLUDE_DIR} ${TORCH_INCLUDE_DIRS})
 

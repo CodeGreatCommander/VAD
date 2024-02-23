@@ -1,104 +1,10 @@
-#include <onnxruntime/core/session/onnxruntime_cxx_api.h>
-#include <iostream>
-#include <vector>
-#include <string>
-#include "../../utils/kaldi_data.h"
-#include "../header_files/proximityFunction.h"
-#include <sndfile.h>
-#include <torch/torch.h>
-#include <fstream>
-#include <filesystem>
-#include <chrono>
-#include <set>
+#include "../header_files/inference.h"
 
-double getDuration(const std::string& filename) {
-    SF_INFO sndInfo;
-    SNDFILE *sndFile = sf_open(filename.c_str(), SFM_READ, &sndInfo);
-    if (sndFile == NULL) {
-        std::cerr << "Error reading source file " <<filename<< std::endl;
-        return -1;
-    }
-
-    double duration = static_cast<double>(sndInfo.frames) / sndInfo.samplerate;
-    sf_close(sndFile);
-    return duration;
-}
-
-void evaluation_single_file(const std::string output,const std::string file,const std::string audio){
-    int samplerate=59;
-    int len_audio=getDuration(audio)*samplerate+2;
-    std::vector<bool> rttm(len_audio,false),output_vec(len_audio,false);
-    std::ifstream rttm_file(file);
-    std::string line;
-    while(std::getline(rttm_file,line)){
-        double start,duration;
-        char speaker[50]; // Adjust size as needed
-        sscanf(line.c_str(),"SPEAKER %s 1 %lf %lf", speaker, &start, &duration);
-        for(int i=(int)(start*samplerate);i<=(int)((start+duration)*samplerate);i++){
-            rttm[i]=true;
-        }
-    }
-    rttm_file.close();
-    std::ifstream output_file(output);
-    while(std::getline(output_file,line)){
-        double start,end;
-        sscanf(line.c_str(),"Start: %lf End: %lf",&start,&end);
-        for(int i=(int)(start*samplerate);i<=(int)(end*samplerate);i++){
-            output_vec[i]=true;
-        }
-    }
-    output_file.close();
-    double acc,fa,miss;acc=fa=miss=0;
-    for(int i=0;i<len_audio;i++){
-        if((rttm[i]&&output_vec[i])||(!rttm[i]&&!output_vec[i])){
-            acc++;
-        }
-        else if(rttm[i]&&!output_vec[i]){
-            miss++;
-        }
-        else if(!rttm[i]&&output_vec[i]){
-            fa++;
-        }
-    }
-    std::cout<<"Accuracy: "<<acc/len_audio<<std::endl;
-    std::cout<<"Miss: "<<miss/len_audio<<std::endl;
-    std::cout<<"False Alarm: "<<fa/len_audio<<std::endl;
-}
-
-
-void evaluate_folder(const std::string& output_folder,const std::string& rttm_folder,const std::string& audio_folder){
-    std::vector<std::string> files;
-    for (const auto & entry : std::filesystem::directory_iterator(output_folder)) {
-        if(entry.path().extension()==".txt"){
-            files.push_back(entry.path().string());
-        }
-    }
-    std::sort(files.begin(),files.end());
-    for(int i=0;i<10;i++){
-        std::cout<<files[i]<<std::endl;
-    }
-    int i=0,tot=files.size();
-    double total_audio_time=0;
-    int c=0;
-    for(const auto& file:files){
-        c++;
-        if(c==3)continue;
-        std::cout<<"Started"<<std::endl;
-        std::cout << "Processing file number: "<<++i<<" / "<<tot<<" "<<file<<std::endl;
-        std::string rttm_file=rttm_folder+"/"+file.substr(file.find_last_of("/")+1,file.find_last_of(".")-file.find_last_of("/")-1)+".rttm";
-        std::string audio_file=audio_folder+"/"+file.substr(file.find_last_of("/")+1,file.find_last_of(".")-file.find_last_of("/")-1)+".flac";
-        total_audio_time+=getDuration(audio_file);
-        evaluation_single_file(file,rttm_file,audio_file);
-        std::cout<<"ended"<<std::endl;
-    }
-    auto stop=std::chrono::high_resolution_clock::now();
-    std::cout<<"\rCompleted"<<std::endl<<"Total audio time: "<<total_audio_time<<std::endl;
-
-}
+using namespace std;
 
 
 
-std::pair<double,std::vector<float>> inference(std::vector<float>& audio_data,Ort::Session& model,const int chunk_size,const int sampling_rate,const float threshold,const double duration_seconds,const double initial_duration_seconds=0){
+std::pair<double,std::vector<float>> inference(std::vector<float>& audio_data,Ort::Session& model,const int chunk_size,const int sampling_rate,const float threshold,const double duration_seconds,const double initial_duration_seconds){
     std::vector<int64_t> input_tensor_shape = {1,1, static_cast<int64_t>(audio_data.size())/*chunk_sample*/}; // shape for 1D tensor
     auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
     auto input_tensor = Ort::Value::CreateTensor<float>(memory_info, audio_data.data(), audio_data.size(), input_tensor_shape.data(), input_tensor_shape.size());
@@ -253,7 +159,7 @@ void inference_single(const std::string& input_file,Ort::Session& model,const st
     }
     file.close();
 }
-void inference_folder(const std::string& input_folder,Ort::Session& model,const std::string& output_folder){
+void inference_batch(const std::string& input_folder,Ort::Session& model,const std::string& output_folder){
     std::vector<std::string> files;
     for (const auto & entry : std::filesystem::directory_iterator(input_folder)) {
         if(entry.path().extension()==".flac"){
@@ -263,110 +169,121 @@ void inference_folder(const std::string& input_folder,Ort::Session& model,const 
     std::sort(files.begin(),files.end());
     int i=0,tot=files.size();
     double total_audio_time=0;
-    for(const auto& file:files){
-        // if(i<9){i++;continue;}
-        total_audio_time+=getDuration(file);
-        std::cout << "\rProcessing file number: "<<++i<<" / "<<tot<< std::flush;
-        auto x=kaldi_data::loadWav(file);
-        std::string output_file=output_folder+"/"+file.substr(file.find_last_of("/")+1,file.find_last_of(".")-file.find_last_of("/")-1)+".txt";
-        inference_single(file,model,output_file);
+    #pragma omp parallel for reduction(+:total_audio_time)
+    for(int i = 0; i < files.size(); i++) {
+        const auto& file = files[i];
+        total_audio_time += getDuration(file);
+        std::cout << "\rProcessing file number: " << i+1 << " / " << tot << std::flush;
+        auto x = kaldi_data::loadWav(file);
+        std::string output_file = output_folder + "/" + file.substr(file.find_last_of("/") + 1, file.find_last_of(".") - file.find_last_of("/") - 1) + ".txt";
+        inference_single(file, model, output_file);
     }
     auto stop=std::chrono::high_resolution_clock::now();
     std::cout<<"\rCompleted"<<std::endl<<"Total audio time: "<<total_audio_time<<std::endl;
 
 }
 
-void test(){
 
-}
-
-int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
-        return 1;
-    }
-    std::string command = argv[1];
-    auto start=std::chrono::high_resolution_clock::now();
-    if(command=="single"){
-        std::string arg3, arg2, arg4;
-        std::ifstream file("./inference/data.txt");
-        if (file.is_open()) {
-            std::getline(file, arg2);//input
-            std::getline(file, arg3);//model
-            std::getline(file, arg4);//output
-            file.close();
-        } else {
-            std::cerr << "Unable to open file data.txt";
-            return 1;
-        }
-        // std::ofstream view_file("view.txt", std::ios::trunc);
-        // if (!view_file.is_open()) {
-        //     std::cerr << "Unable to open file view.txt";
-        //     return 1;
-        // }
-        // view_file.close();
-        Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
-        // Path to your ONNX model file
-        const std::string model_path =arg3;
-
-        Ort::SessionOptions session_options;
-        Ort::Session model(env, model_path.c_str(), session_options); // Load the ONNX model
-    
-        inference_single(arg2,model,arg4);
-    }
-    else if(command=="folder"){
-        std::string arg3, arg2, arg4;
-        std::ifstream file("./inference/data.txt");
-        if (file.is_open()) {
-            std::getline(file, arg2);
-            std::getline(file, arg3);
-            std::getline(file, arg4);
-            file.close();
-        } else {
-            std::cerr << "Unable to open file data.txt";
-            return 1;
-        }
-        Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
-        // Path to your ONNX model file
-        const char* model_path = arg3.c_str();
-
-        Ort::SessionOptions session_options;
-        Ort::Session model(env, model_path, session_options); // Load the ONNX model
-    
-        inference_folder(arg2,model,arg4);
-    }
-    else if(command=="eval"){
-        std::string arg3, arg2,arg4;
-        std::ifstream file("./inference/data.txt");
-        if (file.is_open()) {
-            std::getline(file, arg2);
-            std::getline(file, arg3);
-            std::getline(file, arg4);
-            file.close();
-        } else {
-            std::cerr << "Unable to open file data.txt";
-            return 1;
-        }
-        evaluation_single_file(arg2,arg3,arg4);//arg2: output file, arg3: rttm file, arg4: audio file
+void infer(const std::string& input,bool batch){
+    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); 
+    const std::string model_path = "./models/best_dh.onnx";
+    Ort::SessionOptions session_options;
+    Ort::Session model(env, model_path.c_str(), session_options); // Load the ONNX model
+    if(batch){
+        inference_batch(input,model,"./output");
     }
     else{
-        test();
+        inference_single(input,model,"./output/output.txt");
     }
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-
-    auto hours = duration.count() / 3600000;
-    duration -= std::chrono::milliseconds(hours * 3600000);
-
-    auto minutes = duration.count() / 60000;
-    duration -= std::chrono::milliseconds(minutes * 60000);
-
-    auto seconds = duration.count() / 1000;
-    duration -= std::chrono::milliseconds(seconds * 1000);
-
-    auto milliseconds = duration.count();
-
-    std::cout << "Total time taken: " << hours << " hr " << minutes << " min " << seconds << " sec " << milliseconds << " msec" << std::endl;
-    
-    return 0;
 }
+
+// int main(int argc, char* argv[]) {
+//     if (argc < 2) {
+//         std::cerr << "Usage: " << argv[0] << " <command> [<args>]" << std::endl;
+//         return 1;
+//     }
+//     std::string command = argv[1];
+//     auto start=std::chrono::high_resolution_clock::now();
+//     if(command=="single"){
+//         std::string arg3, arg2, arg4;
+//         std::ifstream file("./inference/data.txt");
+//         if (file.is_open()) {
+//             std::getline(file, arg2);//input
+//             std::getline(file, arg3);//model
+//             std::getline(file, arg4);//output
+//             file.close();
+//         } else {
+//             std::cerr << "Unable to open file data.txt";
+//             return 1;
+//         }
+//         // std::ofstream view_file("view.txt", std::ios::trunc);
+//         // if (!view_file.is_open()) {
+//         //     std::cerr << "Unable to open file view.txt";
+//         //     return 1;
+//         // }
+//         // view_file.close();
+//         Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
+//         // Path to your ONNX model file
+//         const std::string model_path =arg3;
+
+//         Ort::SessionOptions session_options;
+//         Ort::Session model(env, model_path.c_str(), session_options); // Load the ONNX model
+    
+//         inference_single(arg2,model,arg4);
+//     }
+//     else if(command=="folder"){
+//         std::string arg3, arg2, arg4;
+//         std::ifstream file("./inference/data.txt");
+//         if (file.is_open()) {
+//             std::getline(file, arg2);
+//             std::getline(file, arg3);
+//             std::getline(file, arg4);
+//             file.close();
+//         } else {
+//             std::cerr << "Unable to open file data.txt";
+//             return 1;
+//         }
+//         Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); // Initialize ONNX Runtime environment
+//         // Path to your ONNX model file
+//         const char* model_path = arg3.c_str();
+
+//         Ort::SessionOptions session_options;
+//         Ort::Session model(env, model_path, session_options); // Load the ONNX model
+    
+//         inference_folder(arg2,model,arg4);
+//     }
+//     else if(command=="eval"){
+//         std::string arg3, arg2,arg4;
+//         std::ifstream file("./inference/data.txt");
+//         if (file.is_open()) {
+//             std::getline(file, arg2);
+//             std::getline(file, arg3);
+//             std::getline(file, arg4);
+//             file.close();
+//         } else {
+//             std::cerr << "Unable to open file data.txt";
+//             return 1;
+//         }
+//         evaluation_single_file(arg2,arg3,arg4);//arg2: output file, arg3: rttm file, arg4: audio file
+//     }
+//     else{
+//         test();
+//     }
+//     auto stop = std::chrono::high_resolution_clock::now();
+//     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+//     auto hours = duration.count() / 3600000;
+//     duration -= std::chrono::milliseconds(hours * 3600000);
+
+//     auto minutes = duration.count() / 60000;
+//     duration -= std::chrono::milliseconds(minutes * 60000);
+
+//     auto seconds = duration.count() / 1000;
+//     duration -= std::chrono::milliseconds(seconds * 1000);
+
+//     auto milliseconds = duration.count();
+
+//     std::cout << "Total time taken: " << hours << " hr " << minutes << " min " << seconds << " sec " << milliseconds << " msec" << std::endl;
+    
+//     return 0;
+// }

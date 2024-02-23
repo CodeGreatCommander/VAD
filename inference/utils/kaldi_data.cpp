@@ -48,6 +48,24 @@ namespace kaldi_data{
         }
         file.seek(start_frame, SEEK_SET);
         file.readf(data.data(), num_frames);
+        // If the sample rate is not 16000, resample the data
+        if (samplerate != 16000) {
+            double ratio = 16000.0 / samplerate;
+            long output_frames = num_frames * ratio;
+            std::vector<float> resampled_data(output_frames);
+            for (long i = 0; i < output_frames; i++) {
+                double input_index = i / ratio;
+                long input_index_int = static_cast<long>(input_index);
+                double fraction = input_index - input_index_int;
+                if (input_index_int + 1 < num_frames) {
+                    resampled_data[i] = data[input_index_int] * (1 - fraction) + data[input_index_int + 1] * fraction;
+                } else {
+                    resampled_data[i] = data[input_index_int];
+                }
+            }
+            data = std::move(resampled_data);
+            samplerate = 16000;
+        }
         return {deinterleave(data,file.channels()),samplerate};
     }
 
@@ -77,10 +95,3 @@ namespace kaldi_data{
         return kaldi_data::loadWav(wavs[reco],start_time,end_time);
     }
 }
-// #include <iostream>
-// int main(){
-//     auto x=kaldi_data::loadWav("/home/rohan/VAD/dataset/record_trial.flac");
-//     std::cout<<x.second<<std::endl;
-//     return 0;
-// }
-//compile g++ -g -o kaldi kaldi_data.cpp -I/usr/local/include -lsndfile

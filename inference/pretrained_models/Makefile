@@ -53,13 +53,18 @@ all_dependencies: libtorch onnxruntime libsndfile
 EXEC = inference
 
 infer:
-	mkdir -p ./output
+	@mkdir -p ./output
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
-	./build/$(EXEC) single 
+	@echo "Inference started..."
+	@./build/$(EXEC) single $(FILE) $(MODEL)
+	@echo "Inference completed successfully!"
 
-inferfolder:
+batch:
+	@mkdir -p ./output
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
-	./build/$(EXEC) folder 
+	@echo "Batch inference started..."
+	@./build/$(EXEC) batch $(DIR) $(MODEL)
+	@echo "Batch inference completed successfully!"
 evaluate:
 	@if [ ! -f ./build/$(EXEC) ]; then make compile; fi
 	./build/$(EXEC) eval 
