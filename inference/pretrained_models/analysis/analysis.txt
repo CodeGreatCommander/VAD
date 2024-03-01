@@ -58,70 +58,10 @@ Accuracy: 0.724301
 Miss: 0.172077
 False Alarm: 0.103621
 -----------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0011.rttm
-Length of audio: 599.97
-Accuracy: 0.766688
-Miss: 0.209644
-False Alarm: 0.0236679
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0012.rttm
-Length of audio: 599.97
-Accuracy: 0.784256
-Miss: 0.189509
-False Alarm: 0.0262346
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0013.rttm
-Length of audio: 615.09
-Accuracy: 0.805687
-Miss: 0.118162
-False Alarm: 0.0761515
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0014.rttm
-Length of audio: 604.02
-Accuracy: 0.697609
-Miss: 0.181931
-False Alarm: 0.12046
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0015.rttm
-Length of audio: 605.02
-Accuracy: 0.808734
-Miss: 0.151416
-False Alarm: 0.0398499
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0016.rttm
-Length of audio: 599.97
-Accuracy: 0.719019
-Miss: 0.223461
-False Alarm: 0.0575195
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0017.rttm
-Length of audio: 37.93
-Accuracy: 0.737147
-Miss: 0.0912207
-False Alarm: 0.171632
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0018.rttm
-Length of audio: 82.75
-Accuracy: 0.570634
-Miss: 0.114924
-False Alarm: 0.314441
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0019.rttm
-Length of audio: 80.19
-Accuracy: 0.778526
-Miss: 0.1999
-False Alarm: 0.0215738
------------------------------------
-File: /home/rohan/VAD/dataset/third_dihard_challenge_eval/data/rttm/DH_EVAL_0020.rttm
-Length of audio: 59.34
-Accuracy: 0.660094
-Miss: 0.237277
-False Alarm: 0.102629
------------------------------------
 Combined Analysis
-Total Files: 20
-Total audio time: 8890.74
-Accuracy: 0.755092
-Miss: 0.19036
-False Alarm: 0.0545479
+Total Files: 10
+Total audio time: 5006.65
+Accuracy: 0.752702
+Miss: 0.200067
+False Alarm: 0.0472315
 -----------------------------------
