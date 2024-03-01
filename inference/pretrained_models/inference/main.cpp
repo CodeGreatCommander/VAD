@@ -19,7 +19,7 @@ int main(int argc,char *argv[]){
             std::cerr << "Usage: " << argv[0] << " single <path to file> <model name>" << std::endl<<"possible model names:pyannote" << std::endl;
             return 1;
         }
-        infer(argv[2],false);
+        infer(argv[2],argv[3],false);
     }
     else if(command=="batch"){
         //Arguments <path to file> <model name>
@@ -27,7 +27,7 @@ int main(int argc,char *argv[]){
             std::cerr << "Usage: " << argv[0] << " batch <path to file> <model name>" << std::endl<<"possible model names:pyannote" << std::endl;
             return 1;
         }
-        infer(argv[2],true);
+        infer(argv[2],argv[3],true);
     }
     else if(command=="evaluate"){
         //Arguments <path to file> <path to ground truth> <path to audio>

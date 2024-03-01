@@ -177,7 +177,10 @@ void inference_batch(const std::string& input_folder,Ort::Session& model,const s
 }
 
 
-void infer(const std::string& input,bool batch){
+void infer(const std::string& input,const std::string& model_type,bool batch){
+    map<string,string> model_map;
+    model_map["pyannote"]="./models/best_dh.onnx";
+    model_map["silero"]="./models/silero.onnx";
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); 
     const std::string model_path = "./models/best_dh.onnx";
     Ort::SessionOptions session_options;
