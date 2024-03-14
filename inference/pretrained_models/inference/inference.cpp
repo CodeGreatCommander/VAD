@@ -97,6 +97,10 @@ void inference_single(const std::string& input_file,Ort::Session& model,const st
     //Initailization
     initialise_silero();
     float stride_ms=100,chunk_ms=1000,sampling_rate=16000,threshold=0.55,min_speech_sec=0.2;
+    if(model_type=="silero"){
+        chunk_ms=100;
+        stride_ms=10;
+    }
     int chunk_sample = int(chunk_ms * sampling_rate / 1000),stride_sample = int(stride_ms * sampling_rate / 1000);
     
     //wav loading
