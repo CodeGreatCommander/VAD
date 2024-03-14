@@ -1,10 +1,74 @@
 #include "../header_files/inference.h"
+#include "../header_files/silero_vad.h"
 
 using namespace std;
 
+silero siler;
+
+void initialise_silero(){
+    siler.size_hc = 2 * 1 * 64; // It's FIXED.
+    siler._h=std::vector<float>(siler.size_hc,0);
+    siler._c=std::vector<float>(siler.size_hc,0);
+    siler.input_node_dims[0] = 1;
+    siler.sr={16000};
+}
+
+std::pair<double,std::vector<float>> inference_silero(std::vector<float>& audio_data,Ort::Session& model,const int chunk_size,const int sampling_rate,const float threshold,const double duration_seconds,const double initial_duration_seconds){
+    std::vector<int64_t> input_tensor_shape = {1,1, static_cast<int64_t>(audio_data.size())/*chunk_sample*/}; // shape for 1D tensor
+    auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    // auto input_tensor = Ort::Value::CreateTensor<float>(memory_info, audio_data.data(), audio_data.size(), input_tensor_shape.data(), input_tensor_shape.size());
+    siler.input_node_dims[1] = audio_data.size();
+        Ort::Value input_ort = Ort::Value::CreateTensor<float>(
+            memory_info, audio_data.data(), audio_data.size(), siler.input_node_dims, 2);
+        Ort::Value sr_ort = Ort::Value::CreateTensor<int64_t>(
+            memory_info, siler.sr.data(), siler.sr.size(), siler.sr_node_dims, 1);
+        Ort::Value h_ort = Ort::Value::CreateTensor<float>(
+            memory_info, siler._h.data(), siler._h.size(), siler.hc_node_dims, 3);
+        Ort::Value c_ort = Ort::Value::CreateTensor<float>(
+            memory_info, siler._c.data(), siler._c.size(), siler.hc_node_dims, 3);
+
+        // Clear and add inputs
+        siler.ort_inputs.clear();
+        siler.ort_inputs.emplace_back(std::move(input_ort));
+        siler.ort_inputs.emplace_back(std::move(sr_ort));
+        siler.ort_inputs.emplace_back(std::move(h_ort));
+        siler.ort_inputs.emplace_back(std::move(c_ort));
 
 
-std::pair<double,std::vector<float>> inference(std::vector<float>& audio_data,Ort::Session& model,const int chunk_size,const int sampling_rate,const float threshold,const double duration_seconds,const double initial_duration_seconds){
+
+
+
+
+
+    // Score model & input tensor, get back output tensor
+    std::vector<const char*> input_node_names = {"input", "sr", "h", "c"}; // replace with your input node name
+    std::vector<const char*> output_node_names = {"output", "hn", "cn"}; // replace with your output node name
+    
+
+    auto ort_outputs = model.Run(
+            Ort::RunOptions{nullptr},
+            input_node_names.data(), siler.ort_inputs.data(), siler.ort_inputs.size(),
+            output_node_names.data(), output_node_names.size());
+
+    // Get pointer to output tensor float values
+    float* floatarr = ort_outputs[0].GetTensorMutableData<float>();
+    float *hn = ort_outputs[1].GetTensorMutableData<float>();
+        std::memcpy(siler._h.data(), hn, siler.size_hc * sizeof(float));
+    float *cn = ort_outputs[2].GetTensorMutableData<float>();
+        std::memcpy(siler._c.data(), cn, siler.size_hc * sizeof(float));
+
+    // Get the shape of the output tensor
+    std::vector<int64_t> output_shape = ort_outputs[0].GetTensorTypeAndShapeInfo().GetShape();
+
+    // Calculate the size of the output tensor
+    int64_t output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int64_t>());
+    double time_per_frame=1.0*duration_seconds/output_size;
+    std::vector<float> output(floatarr, floatarr + output_size);
+
+    return {time_per_frame,output};
+}
+
+std::pair<double,std::vector<float>> inference_pyannote(std::vector<float>& audio_data,Ort::Session& model,const int chunk_size,const int sampling_rate,const float threshold,const double duration_seconds,const double initial_duration_seconds){
     std::vector<int64_t> input_tensor_shape = {1,1, static_cast<int64_t>(audio_data.size())/*chunk_sample*/}; // shape for 1D tensor
     auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
     auto input_tensor = Ort::Value::CreateTensor<float>(memory_info, audio_data.data(), audio_data.size(), input_tensor_shape.data(), input_tensor_shape.size());
@@ -24,46 +88,14 @@ std::pair<double,std::vector<float>> inference(std::vector<float>& audio_data,Or
     int64_t output_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int64_t>());
     double time_per_frame=1.0*duration_seconds/output_size;
     std::vector<float> output(floatarr, floatarr + output_size);
-    // Print the output tensor data
-    // std::vector<std::pair<float,float>>output_pairs;
-    // bool flag=false;
-    // double out=0;
-    // for (int64_t i = 0; i < output_size; i++) {
-    //     file<<floatarr[i]<<" ";
-    //     if(floatarr[i]>threshold){
-    //         floatarr[i]=1;
-    //     }
-    //     else{
-    //         floatarr[i]=0;
-    //     }
-    //     double pres_time=i*time_per_frame;
-    //     if(time_per_frame>duration_seconds){
-    //         break;
-    //     }
-    //     if(floatarr[i]==1){
-    //         if(!flag){
-    //             flag=true;
-    //             out=pres_time;
-    //         }
-    //     }
-    //     else{
-    //         if(flag){
-    //             flag=false;
-    //             output_pairs.push_back({ initial_duration_seconds+out,initial_duration_seconds+std::min(pres_time/*+time_per_frame*/,duration_seconds)});
-    //         }
-    //     }
-    // }
-    // if(flag){
-    //     output_pairs.push_back({initial_duration_seconds+out,initial_duration_seconds+duration_seconds});
-    // }
-    // file<<std::endl;
-    // file.close();
+
     return {time_per_frame,output};
 }
 
 
-void inference_single(const std::string& input_file,Ort::Session& model,const std::string& output_file){
+void inference_single(const std::string& input_file,Ort::Session& model,const std::string& output_file,const std::string& model_type){
     //Initailization
+    initialise_silero();
     float stride_ms=100,chunk_ms=1000,sampling_rate=16000,threshold=0.55,min_speech_sec=0.2;
     int chunk_sample = int(chunk_ms * sampling_rate / 1000),stride_sample = int(stride_ms * sampling_rate / 1000);
     
@@ -77,15 +109,6 @@ void inference_single(const std::string& input_file,Ort::Session& model,const st
     if(wav.second!=sampling_rate){
         throw std::runtime_error("Sampling rate of wav file is not equal to "+std::to_string(sampling_rate)+" and found to be "+std::to_string(wav.second));
     }
-    // std::ofstream view_file("view.txt", std::ios::app);
-    // if (!view_file.is_open()) {
-    //     std::cerr << "Unable to open file view.txt";
-    // }
-    // for (float sample : audio_data) {
-    //     view_file << sample << " ";
-    // }
-    // view_file << std::endl;
-    // view_file.close();
     //time loading
     double duration_seconds=getDuration(input_file);
     duration_seconds=duration_seconds+1.0*len_pad/sampling_rate;
@@ -95,7 +118,11 @@ void inference_single(const std::string& input_file,Ort::Session& model,const st
     double time_per_frame;
     for(int i=0;i<len_audio;i+=stride_sample){
         std::vector<float> audio_data_chunk(audio_data.begin()+i,audio_data.begin()+i+chunk_sample);
-        auto temp=inference(audio_data_chunk,model,chunk_sample,sampling_rate,threshold,duration_seconds*chunk_sample/len_audio,duration_seconds*i/len_audio);
+        std::pair<double,std::vector<float>> temp;
+        if(model_type=="pyannote")
+            temp=inference_pyannote(audio_data_chunk,model,chunk_sample,sampling_rate,threshold,duration_seconds*chunk_sample/len_audio,duration_seconds*i/len_audio);
+        else if(model_type=="silero")
+            temp=inference_silero(audio_data_chunk,model,chunk_sample,sampling_rate,threshold,duration_seconds*chunk_sample/len_audio,duration_seconds*i/len_audio);
         time_per_frame=temp.first;
         output_chunks.push_back(temp.second);
     }
@@ -152,7 +179,7 @@ void inference_single(const std::string& input_file,Ort::Session& model,const st
     }
     file.close();
 }
-void inference_batch(const std::string& input_folder,Ort::Session& model,const std::string& output_folder){
+void inference_batch(const std::string& input_folder,Ort::Session& model,const std::string& output_folder,const std::string& model_type){
     std::vector<std::string> files;
     for (const auto & entry : std::filesystem::directory_iterator(input_folder)) {
         if(entry.path().extension()==".flac"){
@@ -169,7 +196,7 @@ void inference_batch(const std::string& input_folder,Ort::Session& model,const s
         std::cout << "\rProcessing file number: " << i+1 << " / " << tot << std::flush;
         auto x = kaldi_data::loadWav(file);
         std::string output_file = output_folder + "/" + file.substr(file.find_last_of("/") + 1, file.find_last_of(".") - file.find_last_of("/") - 1) + ".txt";
-        inference_single(file, model, output_file);
+        inference_single(file, model, output_file,model_type);
     }
     auto stop=std::chrono::high_resolution_clock::now();
     std::cout<<"\rCompleted"<<std::endl<<"Total audio time: "<<total_audio_time<<std::endl;
@@ -180,15 +207,18 @@ void inference_batch(const std::string& input_folder,Ort::Session& model,const s
 void infer(const std::string& input,const std::string& model_type,bool batch){
     map<string,string> model_map;
     model_map["pyannote"]="./models/best_dh.onnx";
-    model_map["silero"]="./models/silero.onnx";
+    model_map["silero"]="./models/silero_vad.onnx";
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelLoader"); 
-    const std::string model_path = "./models/best_dh.onnx";
+    if(model_map.find(model_type)==model_map.end()){
+        throw std::runtime_error("Model name not found");
+    }
+    const std::string model_path = model_map[model_type];
     Ort::SessionOptions session_options;
     Ort::Session model(env, model_path.c_str(), session_options); // Load the ONNX model
     if(batch){
-        inference_batch(input,model,"./output");
+        inference_batch(input,model,"./output",model_type);
     }
     else{
-        inference_single(input,model,"./output/output.txt");
+        inference_single(input,model,"./output/output.txt",model_type);
     }
 }
